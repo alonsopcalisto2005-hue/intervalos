@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Entrenador de Intervalos</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --accent: #38bdf8;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --success: #22c55e;
+      --error: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+    .direction-badge {
+      display: inline-block;
+      padding: 0.35rem 0.8rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1.25rem;
+    }
+    .ascendente { background: #0369a1; color: #e0f2fe; }
+    .descendente { background: #7c2d12; color: #ffedd5; }
+    .question {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1rem;
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+    }
+    .arrow { color: var(--accent); font-size: 1.8rem; }
+    .grid-options {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.6rem;
+      margin-bottom: 1.25rem;
+    }
+    button.opt-btn {
+      background: #334155;
+      color: var(--text);
+      border: 1px solid #475569;
+      border-radius: 8px;
+      padding: 0.75rem;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    button.opt-btn:hover {
+      background: #475569;
+      border-color: var(--accent);
+    }
+    .feedback {
+      min-height: 2.2rem;
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+    .score-board {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      border-top: 1px solid #334155;
+      padding-top: 1rem;
+      display: flex;
+      justify-content: space-around;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div id="badge" class="direction-badge ascendente">Ascendente</div>
+  <div class="question">
+    <span id="note1">Do</span>
+    <span id="arrow-icon" class="arrow">↗</span>
+    <span id="note2">Sol</span>
+  </div>
+
+  <div class="grid-options" id="options-container"></div>
+  <div class="feedback" id="feedback-msg"></div>
+
+  <div class="score-board">
+    <span>Aciertos: <strong id="score" style="color: var(--accent);">0</strong></span>
+    <span>Total: <strong id="total">0</strong></span>
+  </div>
+</div>
+
+<script>
+  const NOTE_NAMES = ['Do', 'Do#', 'Reb', 'Re', 'Re#', 'Mib', 'Mi', 'Fa', 'Fa#', 'Solb', 'Sol', 'Sol#', 'Lab', 'La', 'La#', 'Sib', 'Si'];
+  const PITCH_VALUES = { 'Do': 0, 'Do#': 1, 'Reb': 1, 'Re': 2, 'Re#': 3, 'Mib': 3, 'Mi': 4, 'Fa': 5, 'Fa#': 6, 'Solb': 6, 'Sol': 7, 'Sol#': 8, 'Lab': 8, 'La': 9, 'La#': 10, 'Sib': 10, 'Si': 11 };
+  const DIATONIC_BASE = { 'Do': 0, 'Do#': 0, 'Reb': 1, 'Re': 1, 'Re#': 1, 'Mib': 2, 'Mi': 2, 'Fa': 3, 'Fa#': 3, 'Solb': 4, 'Sol': 4, 'Sol#': 4, 'Lab': 5, 'La': 5, 'La#': 5, 'Sib': 6, 'Si': 6 };
+
+  const INTERVAL_MAP = {
+    '1,1': '2da menor',
+    '2,1': '2da mayor',
+    '3,2': '3ra menor',
+    '4,2': '3ra mayor',
+    '5,3': '4ta justa',
+    '6,3': '4ta aumentada',
+    '6,4': '5ta disminuida',
+    '7,4': '5ta justa',
+    '8,5': '6ta menor',
+    '9,5': '6ta mayor',
+    '10,6': '7ma menor',
+    '11,6': '7ma mayor',
+    '12,7': '8va justa'
+  };
+
+  const ALL_LABELS = ['2da menor', '2da mayor', '3ra menor', '3ra mayor', '4ta justa', 'Tritono (4+/5°)', '5ta justa', '6ta menor', '6ta mayor', '7ma menor', '7ma mayor', '8va justa'];
+
+  let currentTarget = '';
+  let currentST = 0;
+  let score = 0;
+  let total = 0;
+
+  function getRandomInt(max) { return Math.floor(Math.random() * max); }
+
+  function generateQuestion() {
+    document.getElementById('feedback-msg').textContent = '';
+    const isAsc = Math.random() > 0.5;
+    const dirStr = isAsc ? 'ascendente' : 'descendente';
+
+    while (true) {
+      const n1 = NOTE_NAMES[getRandomInt(NOTE_NAMES.length)];
+      const n2 = NOTE_NAMES[getRandomInt(NOTE_NAMES.length)];
+
+      const p1 = PITCH_VALUES[n1], p2 = PITCH_VALUES[n2];
+      const d1 = DIATONIC_BASE[n1], d2 = DIATONIC_BASE[n2];
+
+      let st = isAsc ? (p2 - p1 + 12) % 12 : (p1 - p2 + 12) % 12;
+      let gr = isAsc ? (d2 - d1 + 7) % 7 : (d1 - d2 + 7) % 7;
+
+      if (st === 0 && gr === 0) {
+        st = 12; gr = 7;
+      }
+
+      const key = `${st},${gr}`;
+      if (INTERVAL_MAP[key]) {
+        let label = INTERVAL_MAP[key];
+        if (st === 6) label = 'Tritono (4+/5°)';
+
+        currentTarget = label;
+        currentST = st;
+
+        document.getElementById('note1').textContent = n1;
+        document.getElementById('note2').textContent = n2;
+        document.getElementById('arrow-icon').textContent = isAsc ? '↗' : '↘';
+
+        const badge = document.getElementById('badge');
+        badge.className = `direction-badge ${dirStr}`;
+        badge.textContent = isAsc ? 'Ascendente' : 'Descendente';
+
+        renderButtons(label);
+        break;
+      }
+    }
+  }
+
+  function renderButtons(correctLabel) {
+    const container = document.getElementById('options-container');
+    container.innerHTML = '';
+
+    const distractors = ALL_LABELS.filter(l => l !== correctLabel)
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 3);
+
+    const choices = [correctLabel, ...distractors].sort(() => 0.5 - Math.random());
+
+    choices.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'opt-btn';
+      btn.textContent = opt;
+      btn.onclick = () => handleAnswer(opt);
+      container.appendChild(btn);
+    });
+  }
+
+  function handleAnswer(choice) {
+    total++;
+    const fb = document.getElementById('feedback-msg');
+
+    if (choice === currentTarget) {
+      score++;
+      fb.style.color = 'var(--success)';
+      fb.textContent = `¡Correcto! (${currentST} semitonos)`;
+    } else {
+      fb.style.color = 'var(--error)';
+      fb.textContent = `Incorrecto. Era ${currentTarget} (${currentST} semitonos)`;
+    }
+
+    document.getElementById('score').textContent = score;
+    document.getElementById('total').textContent = total;
+
+    setTimeout(generateQuestion, 1200);
+  }
+
+  generateQuestion();
+</script>
+</body>
+</html>
