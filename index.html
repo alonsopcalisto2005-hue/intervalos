@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Entrenador Musical: Intervalos y Tríadas</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card-alt: #334155;
+      --accent: #38bdf8;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --success: #22c55e;
+      --error: #ef4444;
+      --gold: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 520px;
+      width: 100%;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+
+    /* Barra de Jugador */
+    .player-bar {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      background: #0f172a;
+      padding: 0.5rem 0.75rem;
+      border-radius: 10px;
+      margin-bottom: 1rem;
+    }
+    .player-bar label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+    .player-bar input {
+      flex: 1;
+      background: transparent;
+      border: 1px solid #334155;
+      color: var(--text);
+      padding: 0.35rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .player-bar input:focus {
+      border-color: var(--accent);
+    }
+    .save-rank-btn {
+      background: #0284c7;
+      color: #ffffff;
+      border: none;
+      padding: 0.4rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .save-rank-btn:hover { background: #0369a1; }
+
+    /* Navegación y Filtros */
+    .mode-nav {
+      display: flex;
+      background: #0f172a;
+      padding: 0.3rem;
+      border-radius: 10px;
+      margin-bottom: 1rem;
+      gap: 0.3rem;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 0.6rem;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.9rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .mode-btn.active {
+      background: var(--accent);
+      color: #0f172a;
+    }
+    .config-panel {
+      background: #111e33;
+      border-radius: 10px;
+      padding: 0.75rem;
+      margin-bottom: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .config-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+    .config-options {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    .chip {
+      background: var(--card-alt);
+      color: var(--text-muted);
+      border: 1px solid #475569;
+      padding: 0.35rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+    .chip.active {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: var(--accent);
+    }
+
+    .direction-badge {
+      display: inline-block;
+      padding: 0.35rem 0.85rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.8rem;
+    }
+    .ascendente { background: #0369a1; color: #e0f2fe; }
+    .descendente { background: #7c2d12; color: #ffedd5; }
+    .triad-badge { background: #065f46; color: #d1fae5; }
+    
+    .question-prompt {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      margin-bottom: 0.3rem;
+    }
+    .question {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1.2rem;
+      font-size: 2.3rem;
+      font-weight: 700;
+      margin-bottom: 1.25rem;
+      min-height: 3rem;
+    }
+    .arrow { color: var(--accent); font-size: 2rem; }
+    .input-form {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.6rem;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+    button.submit-btn {
+      background: var(--accent);
+      color: #0f172a;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      padding: 0 1.25rem;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    button.submit-btn:hover { opacity: 0.9; }
+    .help-hint {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+    .feedback {
+      min-height: 2.2rem;
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+    .score-board {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      border-top: 1px solid #334155;
+      padding-top: 1rem;
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Tabla de Posiciones */
+    .ranking-section {
+      background: #0f172a;
+      border-radius: 12px;
+      padding: 1rem;
+      text-align: left;
+    }
+    .ranking-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+    .ranking-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--gold);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .reset-btn {
+      background: transparent;
+      border: none;
+      color: #64748b;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .reset-btn:hover { color: var(--error); }
+    .ranking-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .ranking-table th {
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 0.35rem 0.5rem;
+      border-bottom: 1px solid #1e293b;
+    }
+    .ranking-table td {
+      padding: 0.45rem 0.5rem;
+      border-bottom: 1px solid #1e293b;
+    }
+    .ranking-table tr:first-child td {
+      color: var(--gold);
+      font-weight: 700;
+    }
+    .empty-rank {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      text-align: center;
+      padding: 0.75rem 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <!-- Identificación de Jugador -->
+  <div class="player-bar">
+    <label for="player-input">Jugador:</label>
+    <input type="text" id="player-input" placeholder="Tu apodo..." maxlength="12" value="Jugador 1" />
+    <button type="button" class="save-rank-btn" onclick="saveCurrentRun()">Guardar Récord</button>
+  </div>
+
+  <!-- Selector Principal -->
+  <div class="mode-nav">
+    <button class="mode-btn active" id="tab-intervalos" onclick="switchMode('intervals')">Intervalos</button>
+    <button class="mode-btn" id="tab-triadas" onclick="switchMode('triads')">Tríadas</button>
+  </div>
+
+  <!-- Panel Config Intervalos -->
+  <div id="config-intervals" class="config-panel">
+    <span class="config-title">Dificultad de intervalos</span>
+    <div class="config-options">
+      <button type="button" class="chip active" id="diff-standard" onclick="setIntervalDifficulty('standard')">Estándar (m/M/J/Tritono)</button>
+      <button type="button" class="chip" id="diff-advanced" onclick="setIntervalDifficulty('advanced')">Avanzado (5+, 4°, 2+, 7°)</button>
+    </div>
+  </div>
+
+  <!-- Panel Config Tríadas -->
+  <div id="config-triads" class="config-panel" style="display: none;">
+    <span class="config-title">Especies activas</span>
+    <div class="config-options">
+      <button type="button" class="chip active" data-type="Mayor" onclick="toggleTriadType('Mayor')">Mayor</button>
+      <button type="button" class="chip active" data-type="Menor" onclick="toggleTriadType('Menor')">Menor</button>
+      <button type="button" class="chip active" data-type="Disminuida" onclick="toggleTriadType('Disminuida')">Disminuida (°)</button>
+      <button type="button" class="chip active" data-type="Aumentada" onclick="toggleTriadType('Aumentada')">Aumentada (+)</button>
+    </div>
+  </div>
+
+  <div id="badge" class="direction-badge ascendente">Ascendente</div>
+  <div id="prompt-text" class="question-prompt" style="display: none;"></div>
+  
+  <div class="question" id="display-area">
+    <span id="note1">Do</span>
+    <span id="arrow-icon" class="arrow">↗</span>
+    <span id="note2">Sol</span>
+  </div>
+
+  <form class="input-form" onsubmit="event.preventDefault(); checkCurrentAnswer();">
+    <input 
+      type="text" 
+      id="user-input" 
+      placeholder="Escribe tu respuesta..." 
+      autocomplete="off" 
+      autofocus 
+    />
+    <button type="submit" class="submit-btn">Enviar</button>
+  </form>
+
+  <!-- Pistas genéricas sin filtrar la respuesta -->
+  <p class="help-hint" id="format-hint"></p>
+
+  <div class="feedback" id="feedback-msg"></div>
+
+  <div class="score-board">
+    <span>Aciertos: <strong id="score" style="color: var(--accent);">0</strong></span>
+    <span>Total: <strong id="total">0</strong></span>
+  </div>
+
+  <!-- Tabla de Posiciones -->
+  <div class="ranking-section">
+    <div class="ranking-header">
+      <span class="ranking-title">🏆 Tabla de Posiciones</span>
+      <button type="button" class="reset-btn" onclick="clearLeaderboard()">Borrar historial</button>
+    </div>
+    <div id="ranking-container"></div>
+  </div>
+</div>
+
+<script>
+  let currentMode = 'intervals'; 
+  let intervalDifficulty = 'standard'; 
+  let activeTriadTypes = ['Mayor', 'Menor', 'Disminuida', 'Aumentada'];
+
+  let score = 0;
+  let total = 0;
+  let isWaiting = false;
+
+  const NOTE_NAMES = ['Do', 'Do#', 'Reb', 'Re', 'Re#', 'Mib', 'Mi', 'Fa', 'Fa#', 'Solb', 'Sol', 'Sol#', 'Lab', 'La', 'La#', 'Sib', 'Si'];
+  const PITCH_VALUES = { 'Do': 0, 'Do#': 1, 'Reb': 1, 'Re': 2, 'Re#': 3, 'Mib': 3, 'Mi': 4, 'Fa': 5, 'Fa#': 6, 'Solb': 6, 'Sol': 7, 'Sol#': 8, 'Lab': 8, 'La': 9, 'La#': 10, 'Sib': 10, 'Si': 11 };
+  const DIATONIC_BASE = { 'Do': 0, 'Do#': 0, 'Reb': 1, 'Re': 1, 'Re#': 1, 'Mib': 2, 'Mi': 2, 'Fa': 3, 'Fa#': 3, 'Solb': 4, 'Sol': 4, 'Sol#': 4, 'Lab': 5, 'La': 5, 'La#': 5, 'Sib': 6, 'Si': 6 };
+  const DIATONIC_NAMES = ['Do', 'Re', 'Mi', 'Fa', 'Sol', 'La', 'Si'];
+  const DIATONIC_NATURAL_PITCHES = [0, 2, 4, 5, 7, 9, 11];
+
+  const ALL_INTERVALS = {
+    '1,1': { name: '2da menor', aliases: ['2m', '2da menor', 'segunda menor'], level: 'standard' },
+    '2,1': { name: '2da mayor', aliases: ['2m', '2da mayor', 'segunda mayor', '2M'], level: 'standard' },
+    '3,2': { name: '3ra menor', aliases: ['3m', '3ra menor', 'tercera menor'], level: 'standard' },
+    '4,2': { name: '3ra mayor', aliases: ['3M', '3ra mayor', 'tercera mayor'], level: 'standard' },
+    '5,3': { name: '4ta justa', aliases: ['4j', '4ta justa', 'cuarta justa', '4J'], level: 'standard' },
+    '6,3': { name: '4ta aumentada (Tritono)', aliases: ['tritono', '4+', '4aum', '4ta aumentada', 'cuarta aumentada'], level: 'standard' },
+    '6,4': { name: '5ta disminuida (Tritono)', aliases: ['tritono', '5°', '5dism', '5ta disminuida', 'quinta disminuida'], level: 'standard' },
+    '7,4': { name: '5ta justa', aliases: ['5j', '5ta justa', 'quinta justa', '5J'], level: 'standard' },
+    '8,5': { name: '6ta menor', aliases: ['6m', '6ta menor', 'sexta menor'], level: 'standard' },
+    '9,5': { name: '6ta mayor', aliases: ['6M', '6ta mayor', 'sexta mayor'], level: 'standard' },
+    '10,6': { name: '7ma menor', aliases: ['7m', '7ma menor', 'septima menor', 'séptima menor'], level: 'standard' },
+    '11,6': { name: '7ma mayor', aliases: ['7M', '7ma mayor', 'septima mayor', 'séptima mayor'], level: 'standard' },
+    '12,7': { name: '8va justa', aliases: ['8j', '8va justa', 'octava justa', 'octava', '8va', '8J'], level: 'standard' },
+    '4,3': { name: '4ta disminuida', aliases: ['4dism', '4°', '4-', '4ta disminuida', 'cuarta disminuida'], level: 'advanced' },
+    '8,4': { name: '5ta aumentada', aliases: ['5aum', '5+', '5ta aumentada', 'quinta aumentada'], level: 'advanced' },
+    '3,1': { name: '2da aumentada', aliases: ['2aum', '2+', '2da aumentada', 'segunda aumentada'], level: 'advanced' },
+    '9,6': { name: '7ma disminuida', aliases: ['7dism', '7°', '7-', '7ma disminuida', 'septima disminuida', 'séptima disminuida'], level: 'advanced' },
+    '2,2': { name: '3ra disminuida', aliases: ['3dism', '3°', '3-', '3ra disminuida', 'tercera disminuida'], level: 'advanced' }
+  };
+
+  const ALL_TRIADS = [
+    { name: 'Mayor', label: 'Tríada Mayor', thirdSemi: 4, fifthSemi: 7 },
+    { name: 'Menor', label: 'Tríada Menor', thirdSemi: 3, fifthSemi: 7 },
+    { name: 'Disminuida', label: 'Tríada Disminuida', thirdSemi: 3, fifthSemi: 6 },
+    { name: 'Aumentada', label: 'Tríada Aumentada', thirdSemi: 4, fifthSemi: 8 }
+  ];
+
+  const PRACTICAL_ROOTS = ['Do', 'Do#', 'Reb', 'Re', 'Mib', 'Mi', 'Fa', 'Fa#', 'Sol', 'Lab', 'La', 'Sib', 'Si'];
+
+  let currentTargetInterval = null;
+  let currentTargetTriad = null;
+
+  function cleanString(str) {
+    return str.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function getRandomInt(max) { return Math.floor(Math.random() * max); }
+
+  function switchMode(mode) {
+    currentMode = mode;
+    document.getElementById('tab-intervalos').classList.toggle('active', mode === 'intervals');
+    document.getElementById('tab-triadas').classList.toggle('active', mode === 'triads');
+
+    document.getElementById('config-intervals').style.display = mode === 'intervals' ? 'flex' : 'none';
+    document.getElementById('config-triads').style.display = mode === 'triads' ? 'flex' : 'none';
+
+    score = 0;
+    total = 0;
+    document.getElementById('score').textContent = 0;
+    document.getElementById('total').textContent = 0;
+
+    generateNewQuestion();
+  }
+
+  function setIntervalDifficulty(diff) {
+    intervalDifficulty = diff;
+    document.getElementById('diff-standard').classList.toggle('active', diff === 'standard');
+    document.getElementById('diff-advanced').classList.toggle('active', diff === 'advanced');
+    generateNewQuestion();
+  }
+
+  function toggleTriadType(type) {
+    if (activeTriadTypes.includes(type)) {
+      if (activeTriadTypes.length === 1) return;
+      activeTriadTypes = activeTriadTypes.filter(t => t !== type);
+    } else {
+      activeTriadTypes.push(type);
+    }
+
+    document.querySelectorAll('#config-triads .chip').forEach(chip => {
+      chip.classList.toggle('active', activeTriadTypes.includes(chip.dataset.type));
+    });
+
+    generateNewQuestion();
+  }
+
+  function calculateSpelledNote(rootName, diatonicSteps, targetPitchOffset) {
+    const rootLetterIdx = DIATONIC_BASE[rootName];
+    const targetLetterIdx = (rootLetterIdx + diatonicSteps) % 7;
+    const targetBaseName = DIATONIC_NAMES[targetLetterIdx];
+    const naturalPitch = DIATONIC_NATURAL_PITCHES[targetLetterIdx];
+
+    const rootPitch = PITCH_VALUES[rootName];
+    const targetRealPitch = (rootPitch + targetPitchOffset) % 12;
+
+    let diff = (targetRealPitch - naturalPitch) % 12;
+    if (diff > 6) diff -= 12;
+    if (diff < -6) diff += 12;
+
+    if (diff === 0) return targetBaseName;
+    if (diff === 1) return targetBaseName + '#';
+    if (diff === -1) return targetBaseName + 'b';
+    return null;
+  }
+
+  function generateTriadQuestion() {
+    const availablePool = ALL_TRIADS.filter(t => activeTriadTypes.includes(t.name));
+
+    while (true) {
+      const root = PRACTICAL_ROOTS[getRandomInt(PRACTICAL_ROOTS.length)];
+      const type = availablePool[getRandomInt(availablePool.length)];
+
+      const third = calculateSpelledNote(root, 2, type.thirdSemi);
+      const fifth = calculateSpelledNote(root, 4, type.fifthSemi);
+
+      if (third && fifth) {
+        currentTargetTriad = { root, type, notes: [root, third, fifth] };
+
+        const badge = document.getElementById('badge');
+        badge.className = 'direction-badge triad-badge';
+        badge.textContent = type.label;
+
+        const prompt = document.getElementById('prompt-text');
+        prompt.style.display = 'block';
+        prompt.textContent = `Construye la tríada de:`;
+
+        document.getElementById('display-area').innerHTML = `<span>${root}</span>`;
+        
+        // Pista neutra que nunca revela la nota correcta
+        document.getElementById('format-hint').innerHTML = 'Ejemplo de formato: <code>Do - Mi - Sol</code>, <code>re fa# la</code> o <code>mib sol sib</code>';
+        break;
+      }
+    }
+  }
+
+  function generateIntervalQuestion() {
+    const isAsc = Math.random() > 0.5;
+    const dirStr = isAsc ? 'ascendente' : 'descendente';
+
+    while (true) {
+      const n1 = NOTE_NAMES[getRandomInt(NOTE_NAMES.length)];
+      const n2 = NOTE_NAMES[getRandomInt(NOTE_NAMES.length)];
+
+      const p1 = PITCH_VALUES[n1], p2 = PITCH_VALUES[n2];
+      const d1 = DIATONIC_BASE[n1], d2 = DIATONIC_BASE[n2];
+
+      let st = isAsc ? (p2 - p1 + 12) % 12 : (p1 - p2 + 12) % 12;
+      let gr = isAsc ? (d2 - d1 + 7) % 7 : (d1 - d2 + 7) % 7;
+
+      if (st === 0 && gr === 0) { st = 12; gr = 7; }
+
+      const key = `${st},${gr}`;
+      const item = ALL_INTERVALS[key];
+
+      if (item) {
+        if (intervalDifficulty === 'standard' && item.level !== 'standard') {
+          continue;
+        }
+
+        currentTargetInterval = {
+          name: item.name,
+          aliases: item.aliases.map(cleanString),
+          st: st
+        };
+
+        const badge = document.getElementById('badge');
+        badge.className = `direction-badge ${dirStr}`;
+        badge.textContent = isAsc ? 'Ascendente' : 'Descendente';
+
+        document.getElementById('prompt-text').style.display = 'none';
+        document.getElementById('display-area').innerHTML = `
+          <span>${n1}</span>
+          <span class="arrow">${isAsc ? '↗' : '↘'}</span>
+          <span>${n2}</span>
+        `;
+        
+        if (intervalDifficulty === 'advanced') {
+          document.getElementById('format-hint').innerHTML = 'Formatos: <code>5+</code>, <code>4°</code>, <code>4aum</code>, <code>3m</code>, <code>tritono</code>, etc.';
+        } else {
+          document.getElementById('format-hint').innerHTML = 'Formatos: <code>3m</code>, <code>3ra menor</code>, <code>5J</code>, <code>tritono</code>, etc.';
+        }
+        break;
+      }
+    }
+  }
+
+  function generateNewQuestion() {
+    isWaiting = false;
+    document.getElementById('feedback-msg').textContent = '';
+    const input = document.getElementById('user-input');
+    input.value = '';
+    input.disabled = false;
+    input.focus();
+
+    if (currentMode === 'intervals') {
+      generateIntervalQuestion();
+    } else {
+      generateTriadQuestion();
+    }
+  }
+
+  function checkCurrentAnswer() {
+    if (isWaiting) return;
+    const input = document.getElementById('user-input');
+    const rawVal = input.value.trim();
+    if (!rawVal) return;
+
+    isWaiting = true;
+    input.disabled = true;
+    total++;
+    const fb = document.getElementById('feedback-msg');
+
+    if (currentMode === 'intervals') {
+      const cleanVal = cleanString(rawVal);
+      const isCorrect = currentTargetInterval.aliases.includes(cleanVal) || 
+                        cleanVal === cleanString(currentTargetInterval.name);
+
+      if (isCorrect) {
+        score++;
+        fb.style.color = 'var(--success)';
+        fb.textContent = `¡Correcto! Es ${currentTargetInterval.name} (${currentTargetInterval.st} semitonos)`;
+      } else {
+        fb.style.color = 'var(--error)';
+        fb.textContent = `Incorrecto. Era ${currentTargetInterval.name} (${currentTargetInterval.st} semitonos)`;
+      }
+    } else {
+      const parsedNotes = rawVal
+        .split(/[\s,\-\/]+/)
+        .filter(n => n.length > 0)
+        .map(cleanString);
+
+      const targetNotesClean = currentTargetTriad.notes.map(cleanString);
+      const isCorrect = parsedNotes.length === 3 && 
+                        parsedNotes[0] === targetNotesClean[0] &&
+                        parsedNotes[1] === targetNotesClean[1] &&
+                        parsedNotes[2] === targetNotesClean[2];
+
+      const expectedString = currentTargetTriad.notes.join(' - ');
+
+      if (isCorrect) {
+        score++;
+        fb.style.color = 'var(--success)';
+        fb.textContent = `¡Correcto! ${expectedString}`;
+      } else {
+        fb.style.color = 'var(--error)';
+        fb.textContent = `Incorrecto. La tríada es: ${expectedString}`;
+      }
+    }
+
+    document.getElementById('score').textContent = score;
+    document.getElementById('total').textContent = total;
+
+    setTimeout(generateNewQuestion, 1600);
+  }
+
+  // --- LÓGICA DE RANKING (localStorage) ---
+  function getLeaderboard() {
+    try {
+      return JSON.parse(localStorage.getItem('musical_leaderboard') || '[]');
+    } catch {
+      return [];
+    }
+  }
+
+  function saveCurrentRun() {
+    const nameInput = document.getElementById('player-input');
+    const playerName = nameInput.value.trim() || 'Anónimo';
+
+    if (total === 0) {
+      alert('Responde al menos un ejercicio antes de guardar tu récord.');
+      return;
+    }
+
+    const leaderboard = getLeaderboard();
+    leaderboard.push({
+      name: playerName,
+      mode: currentMode === 'intervals' ? 'Intervalos' : 'Tríadas',
+      score: score,
+      total: total,
+      date: new Date().toLocaleDateString('es-CL')
+    });
+
+    // Ordenar de mayor a menor según aciertos y efectividad
+    leaderboard.sort((a, b) => b.score - a.score || (b.score / (b.total || 1)) - (a.score / (a.total || 1)));
+
+    // Guardar únicamente el Top 10
+    localStorage.setItem('musical_leaderboard', JSON.stringify(leaderboard.slice(0, 10)));
+
+    renderLeaderboard();
+    alert(`¡Puntaje de ${playerName} guardado con éxito!`);
+  }
+
+  function renderLeaderboard() {
+    const list = getLeaderboard();
+    const container = document.getElementById('ranking-container');
+
+    if (list.length === 0) {
+      container.innerHTML = '<div class="empty-rank">Aún no hay puntuaciones registradas.</div>';
+      return;
+    }
+
+    let html = `
+      <table class="ranking-table">
+        <thead>
+          <tr>
+            <th style="text-align: left;">#</th>
+            <th style="text-align: left;">Nombre</th>
+            <th style="text-align: center;">Modo</th>
+            <th style="text-align: right;">Aciertos</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    list.forEach((item, index) => {
+      const medal = index === 0 ? '🥇 ' : index === 1 ? '🥈 ' : index === 2 ? '🥉 ' : `${index + 1}. `;
+      html += `
+        <tr>
+          <td>${medal}</td>
+          <td><strong>${item.name}</strong></td>
+          <td style="text-align: center; color: var(--text-muted);">${item.mode}</td>
+          <td style="text-align: right;">${item.score}/${item.total}</td>
+        </tr>
+      `;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  }
+
+  function clearLeaderboard() {
+    if (confirm('¿Seguro que quieres borrar todos los récords de la tabla?')) {
+      localStorage.removeItem('musical_leaderboard');
+      renderLeaderboard();
+    }
+  }
+
+  // Inicialización
+  renderLeaderboard();
+  generateNewQuestion();
+</script>
+</body>
+</html>
