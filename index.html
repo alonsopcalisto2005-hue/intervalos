@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Entrenador Musical: Intervalos y Tríadas</title>
+  <!-- Librería oficial de Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
       --bg: #0f172a;
@@ -77,7 +79,7 @@
     }
     .save-rank-btn:hover { background: #0369a1; }
 
-    /* Navegación y Filtros */
+    /* Modos y Filtros */
     .mode-nav {
       display: flex;
       background: #0f172a;
@@ -224,7 +226,7 @@
       margin-bottom: 1.5rem;
     }
 
-    /* Tabla de Posiciones */
+    /* Tabla Global */
     .ranking-section {
       background: #0f172a;
       border-radius: 12px;
@@ -245,14 +247,14 @@
       align-items: center;
       gap: 0.4rem;
     }
-    .reset-btn {
+    .refresh-btn {
       background: transparent;
       border: none;
       color: #64748b;
       font-size: 0.75rem;
       cursor: pointer;
     }
-    .reset-btn:hover { color: var(--error); }
+    .refresh-btn:hover { color: var(--accent); }
     .ranking-table {
       width: 100%;
       border-collapse: collapse;
@@ -283,20 +285,17 @@
 <body>
 
 <div class="card">
-  <!-- Identificación de Jugador -->
   <div class="player-bar">
     <label for="player-input">Jugador:</label>
     <input type="text" id="player-input" placeholder="Tu apodo..." maxlength="12" value="Jugador 1" />
     <button type="button" class="save-rank-btn" onclick="saveCurrentRun()">Guardar Récord</button>
   </div>
 
-  <!-- Selector Principal -->
   <div class="mode-nav">
     <button class="mode-btn active" id="tab-intervalos" onclick="switchMode('intervals')">Intervalos</button>
     <button class="mode-btn" id="tab-triadas" onclick="switchMode('triads')">Tríadas</button>
   </div>
 
-  <!-- Panel Config Intervalos -->
   <div id="config-intervals" class="config-panel">
     <span class="config-title">Dificultad de intervalos</span>
     <div class="config-options">
@@ -305,7 +304,6 @@
     </div>
   </div>
 
-  <!-- Panel Config Tríadas -->
   <div id="config-triads" class="config-panel" style="display: none;">
     <span class="config-title">Especies activas</span>
     <div class="config-options">
@@ -336,7 +334,6 @@
     <button type="submit" class="submit-btn">Enviar</button>
   </form>
 
-  <!-- Pistas genéricas sin filtrar la respuesta -->
   <p class="help-hint" id="format-hint"></p>
 
   <div class="feedback" id="feedback-msg"></div>
@@ -346,17 +343,21 @@
     <span>Total: <strong id="total">0</strong></span>
   </div>
 
-  <!-- Tabla de Posiciones -->
   <div class="ranking-section">
     <div class="ranking-header">
-      <span class="ranking-title">🏆 Tabla de Posiciones</span>
-      <button type="button" class="reset-btn" onclick="clearLeaderboard()">Borrar historial</button>
+      <span class="ranking-title">🏆 Tabla Global (Online)</span>
+      <button type="button" class="refresh-btn" onclick="renderLeaderboard()">↻ Actualizar</button>
     </div>
     <div id="ranking-container"></div>
   </div>
 </div>
 
 <script>
+  const SUPABASE_URL = 'https://kxdhfmlnpnyfdefhqnbd.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4ZGhmbWxucG55ZmRlZmhxbmJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzNTM5ODIsImV4cCI6MjEwNDkyOTk4Mn0.hOYoDPDKvrMMkk2MZBgUB3JyW0ueEiWD3vztqlg40eU';
+
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
   let currentMode = 'intervals'; 
   let intervalDifficulty = 'standard'; 
   let activeTriadTypes = ['Mayor', 'Menor', 'Disminuida', 'Aumentada'];
@@ -489,8 +490,6 @@
         prompt.textContent = `Construye la tríada de:`;
 
         document.getElementById('display-area').innerHTML = `<span>${root}</span>`;
-        
-        // Pista neutra que nunca revela la nota correcta
         document.getElementById('format-hint').innerHTML = 'Ejemplo de formato: <code>Do - Mi - Sol</code>, <code>re fa# la</code> o <code>mib sol sib</code>';
         break;
       }
@@ -617,89 +616,86 @@
     setTimeout(generateNewQuestion, 1600);
   }
 
-  // --- LÓGICA DE RANKING (localStorage) ---
-  function getLeaderboard() {
+  async function renderLeaderboard() {
+    const container = document.getElementById('ranking-container');
+    container.innerHTML = '<div class="empty-rank">Cargando puntuaciones...</div>';
+
     try {
-      return JSON.parse(localStorage.getItem('musical_leaderboard') || '[]');
-    } catch {
-      return [];
+      const { data, error } = await supabaseClient
+        .from('leaderboard')
+        .select('name, mode, score, total')
+        .order('score', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        container.innerHTML = '<div class="empty-rank">Aún no hay récords guardados en la nube.</div>';
+        return;
+      }
+
+      let html = `
+        <table class="ranking-table">
+          <thead>
+            <tr>
+              <th style="text-align: left;">#</th>
+              <th style="text-align: left;">Nombre</th>
+              <th style="text-align: center;">Modo</th>
+              <th style="text-align: right;">Aciertos</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      data.forEach((item, index) => {
+        const medal = index === 0 ? '🥇 ' : index === 1 ? '🥈 ' : index === 2 ? '🥉 ' : `${index + 1}. `;
+        html += `
+          <tr>
+            <td>${medal}</td>
+            <td><strong>${item.name}</strong></td>
+            <td style="text-align: center; color: var(--text-muted);">${item.mode}</td>
+            <td style="text-align: right;">${item.score}/${item.total}</td>
+          </tr>
+        `;
+      });
+
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    } catch (err) {
+      container.innerHTML = `<div class="empty-rank" style="color: var(--error);">Error al cargar tabla: ${err.message}</div>`;
     }
   }
 
-  function saveCurrentRun() {
+  async function saveCurrentRun() {
     const nameInput = document.getElementById('player-input');
     const playerName = nameInput.value.trim() || 'Anónimo';
 
     if (total === 0) {
-      alert('Responde al menos un ejercicio antes de guardar tu récord.');
+      alert('Responde al menos un ejercicio antes de registrar tu récord.');
       return;
     }
 
-    const leaderboard = getLeaderboard();
-    leaderboard.push({
-      name: playerName,
-      mode: currentMode === 'intervals' ? 'Intervalos' : 'Tríadas',
-      score: score,
-      total: total,
-      date: new Date().toLocaleDateString('es-CL')
-    });
+    try {
+      const { error } = await supabaseClient
+        .from('leaderboard')
+        .insert([
+          {
+            name: playerName,
+            mode: currentMode === 'intervals' ? 'Intervalos' : 'Tríadas',
+            score: score,
+            total: total
+          }
+        ]);
 
-    // Ordenar de mayor a menor según aciertos y efectividad
-    leaderboard.sort((a, b) => b.score - a.score || (b.score / (b.total || 1)) - (a.score / (a.total || 1)));
+      if (error) throw error;
 
-    // Guardar únicamente el Top 10
-    localStorage.setItem('musical_leaderboard', JSON.stringify(leaderboard.slice(0, 10)));
-
-    renderLeaderboard();
-    alert(`¡Puntaje de ${playerName} guardado con éxito!`);
-  }
-
-  function renderLeaderboard() {
-    const list = getLeaderboard();
-    const container = document.getElementById('ranking-container');
-
-    if (list.length === 0) {
-      container.innerHTML = '<div class="empty-rank">Aún no hay puntuaciones registradas.</div>';
-      return;
-    }
-
-    let html = `
-      <table class="ranking-table">
-        <thead>
-          <tr>
-            <th style="text-align: left;">#</th>
-            <th style="text-align: left;">Nombre</th>
-            <th style="text-align: center;">Modo</th>
-            <th style="text-align: right;">Aciertos</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-
-    list.forEach((item, index) => {
-      const medal = index === 0 ? '🥇 ' : index === 1 ? '🥈 ' : index === 2 ? '🥉 ' : `${index + 1}. `;
-      html += `
-        <tr>
-          <td>${medal}</td>
-          <td><strong>${item.name}</strong></td>
-          <td style="text-align: center; color: var(--text-muted);">${item.mode}</td>
-          <td style="text-align: right;">${item.score}/${item.total}</td>
-        </tr>
-      `;
-    });
-
-    html += '</tbody></table>';
-    container.innerHTML = html;
-  }
-
-  function clearLeaderboard() {
-    if (confirm('¿Seguro que quieres borrar todos los récords de la tabla?')) {
-      localStorage.removeItem('musical_leaderboard');
+      alert(`¡Puntaje de ${playerName} subido a la nube!`);
       renderLeaderboard();
+    } catch (err) {
+      alert('No se pudo guardar: ' + err.message);
     }
   }
 
-  // Inicialización
   renderLeaderboard();
   generateNewQuestion();
 </script>
