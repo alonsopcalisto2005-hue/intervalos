@@ -46,7 +46,7 @@
       background: #0f172a;
       padding: 0.5rem 0.75rem;
       border-radius: 10px;
-      margin-bottom: 1rem;
+      margin-bottom: 0.8rem;
     }
     .player-bar label {
       font-size: 0.85rem;
@@ -78,6 +78,22 @@
       transition: background 0.15s;
     }
     .save-rank-btn:hover { background: #0369a1; }
+
+    /* Barra de Notación (Do Re Mi vs C D E) */
+    .notation-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .notation-bar .notation-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
 
     /* Modos y Filtros */
     .mode-nav {
@@ -285,17 +301,27 @@
 <body>
 
 <div class="card">
+  <!-- Jugador -->
   <div class="player-bar">
     <label for="player-input">Jugador:</label>
     <input type="text" id="player-input" placeholder="Tu apodo..." maxlength="12" value="Jugador 1" />
     <button type="button" class="save-rank-btn" onclick="saveCurrentRun()">Guardar Récord</button>
   </div>
 
+  <!-- Selector de Notación -->
+  <div class="notation-bar">
+    <span class="notation-label">Notación:</span>
+    <button type="button" class="chip active" id="not-latina" onclick="setNotation('latina')">Do - Re - Mi</button>
+    <button type="button" class="chip" id="not-americana" onclick="setNotation('americana')">C - D - E (Americana)</button>
+  </div>
+
+  <!-- Selector de Modo -->
   <div class="mode-nav">
     <button class="mode-btn active" id="tab-intervalos" onclick="switchMode('intervals')">Intervalos</button>
     <button class="mode-btn" id="tab-triadas" onclick="switchMode('triads')">Tríadas</button>
   </div>
 
+  <!-- Panel Config Intervalos -->
   <div id="config-intervals" class="config-panel">
     <span class="config-title">Dificultad de intervalos</span>
     <div class="config-options">
@@ -304,6 +330,7 @@
     </div>
   </div>
 
+  <!-- Panel Config Tríadas -->
   <div id="config-triads" class="config-panel" style="display: none;">
     <span class="config-title">Especies activas</span>
     <div class="config-options">
@@ -343,6 +370,7 @@
     <span>Total: <strong id="total">0</strong></span>
   </div>
 
+  <!-- Tabla Global Supabase -->
   <div class="ranking-section">
     <div class="ranking-header">
       <span class="ranking-title">🏆 Tabla Global (Online)</span>
@@ -359,12 +387,26 @@
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let currentMode = 'intervals'; 
+  let currentNotation = 'latina'; // 'latina' | 'americana'
   let intervalDifficulty = 'standard'; 
   let activeTriadTypes = ['Mayor', 'Menor', 'Disminuida', 'Aumentada'];
 
   let score = 0;
   let total = 0;
   let isWaiting = false;
+
+  // Diccionarios de conversión entre solfeo y clave americana
+  const LATINA_TO_AMERICANA = {
+    'Do': 'C', 'Re': 'D', 'Mi': 'E', 'Fa': 'F', 'Sol': 'G', 'La': 'A', 'Si': 'B',
+    'Do#': 'C#', 'Re#': 'D#', 'Fa#': 'F#', 'Sol#': 'G#', 'La#': 'A#', 'Mi#': 'E#', 'Si#': 'B#',
+    'Reb': 'Db', 'Mib': 'Eb', 'Solb': 'Gb', 'Lab': 'Ab', 'Sib': 'Bb', 'Dob': 'Cb', 'Fab': 'Fb'
+  };
+
+  const AMERICANA_TO_LATINA = {
+    'c': 'do', 'd': 're', 'e': 'mi', 'f': 'fa', 'g': 'sol', 'a': 'la', 'b': 'si',
+    'c#': 'do#', 'd#': 're#', 'e#': 'mi#', 'f#': 'fa#', 'g#': 'sol#', 'a#': 'la#', 'b#': 'si#',
+    'cb': 'dob', 'db': 'reb', 'eb': 'mib', 'fb': 'fab', 'gb': 'solb', 'ab': 'lab', 'bb': 'sib'
+  };
 
   const NOTE_NAMES = ['Do', 'Do#', 'Reb', 'Re', 'Re#', 'Mib', 'Mi', 'Fa', 'Fa#', 'Solb', 'Sol', 'Sol#', 'Lab', 'La', 'La#', 'Sib', 'Si'];
   const PITCH_VALUES = { 'Do': 0, 'Do#': 1, 'Reb': 1, 'Re': 2, 'Re#': 3, 'Mib': 3, 'Mi': 4, 'Fa': 5, 'Fa#': 6, 'Solb': 6, 'Sol': 7, 'Sol#': 8, 'Lab': 8, 'La': 9, 'La#': 10, 'Sib': 10, 'Si': 11 };
@@ -373,24 +415,24 @@
   const DIATONIC_NATURAL_PITCHES = [0, 2, 4, 5, 7, 9, 11];
 
   const ALL_INTERVALS = {
-    '1,1': { name: '2da menor', aliases: ['2m', '2da menor', 'segunda menor'], level: 'standard' },
-    '2,1': { name: '2da mayor', aliases: ['2m', '2da mayor', 'segunda mayor', '2M'], level: 'standard' },
-    '3,2': { name: '3ra menor', aliases: ['3m', '3ra menor', 'tercera menor'], level: 'standard' },
-    '4,2': { name: '3ra mayor', aliases: ['3M', '3ra mayor', 'tercera mayor'], level: 'standard' },
-    '5,3': { name: '4ta justa', aliases: ['4j', '4ta justa', 'cuarta justa', '4J'], level: 'standard' },
-    '6,3': { name: '4ta aumentada (Tritono)', aliases: ['tritono', '4+', '4aum', '4ta aumentada', 'cuarta aumentada'], level: 'standard' },
-    '6,4': { name: '5ta disminuida (Tritono)', aliases: ['tritono', '5°', '5dism', '5ta disminuida', 'quinta disminuida'], level: 'standard' },
-    '7,4': { name: '5ta justa', aliases: ['5j', '5ta justa', 'quinta justa', '5J'], level: 'standard' },
-    '8,5': { name: '6ta menor', aliases: ['6m', '6ta menor', 'sexta menor'], level: 'standard' },
-    '9,5': { name: '6ta mayor', aliases: ['6M', '6ta mayor', 'sexta mayor'], level: 'standard' },
-    '10,6': { name: '7ma menor', aliases: ['7m', '7ma menor', 'septima menor', 'séptima menor'], level: 'standard' },
-    '11,6': { name: '7ma mayor', aliases: ['7M', '7ma mayor', 'septima mayor', 'séptima mayor'], level: 'standard' },
-    '12,7': { name: '8va justa', aliases: ['8j', '8va justa', 'octava justa', 'octava', '8va', '8J'], level: 'standard' },
-    '4,3': { name: '4ta disminuida', aliases: ['4dism', '4°', '4-', '4ta disminuida', 'cuarta disminuida'], level: 'advanced' },
-    '8,4': { name: '5ta aumentada', aliases: ['5aum', '5+', '5ta aumentada', 'quinta aumentada'], level: 'advanced' },
-    '3,1': { name: '2da aumentada', aliases: ['2aum', '2+', '2da aumentada', 'segunda aumentada'], level: 'advanced' },
-    '9,6': { name: '7ma disminuida', aliases: ['7dism', '7°', '7-', '7ma disminuida', 'septima disminuida', 'séptima disminuida'], level: 'advanced' },
-    '2,2': { name: '3ra disminuida', aliases: ['3dism', '3°', '3-', '3ra disminuida', 'tercera disminuida'], level: 'advanced' }
+    '1,1': { name: '2da menor', aliases: ['2m', 'm2', '2da menor', 'segunda menor'], level: 'standard' },
+    '2,1': { name: '2da mayor', aliases: ['2m', 'm2', '2da mayor', 'segunda mayor', '2M', 'M2'], level: 'standard' },
+    '3,2': { name: '3ra menor', aliases: ['3m', 'm3', '3ra menor', 'tercera menor'], level: 'standard' },
+    '4,2': { name: '3ra mayor', aliases: ['3M', 'M3', '3ra mayor', 'tercera mayor'], level: 'standard' },
+    '5,3': { name: '4ta justa', aliases: ['4j', '4J', 'p4', 'P4', '4ta justa', 'cuarta justa'], level: 'standard' },
+    '6,3': { name: '4ta aumentada (Tritono)', aliases: ['tritono', '4+', '4aum', 'aug4', 'a4', '4ta aumentada', 'cuarta aumentada'], level: 'standard' },
+    '6,4': { name: '5ta disminuida (Tritono)', aliases: ['tritono', '5°', '5dism', 'dim5', 'd5', '5ta disminuida', 'quinta disminuida'], level: 'standard' },
+    '7,4': { name: '5ta justa', aliases: ['5j', '5J', 'p5', 'P5', '5ta justa', 'quinta justa'], level: 'standard' },
+    '8,5': { name: '6ta menor', aliases: ['6m', 'm6', '6ta menor', 'sexta menor'], level: 'standard' },
+    '9,5': { name: '6ta mayor', aliases: ['6M', 'M6', '6ta mayor', 'sexta mayor'], level: 'standard' },
+    '10,6': { name: '7ma menor', aliases: ['7m', 'm7', '7ma menor', 'septima menor', 'séptima menor'], level: 'standard' },
+    '11,6': { name: '7ma mayor', aliases: ['7M', 'M7', 'maj7', '7ma mayor', 'septima mayor', 'séptima mayor'], level: 'standard' },
+    '12,7': { name: '8va justa', aliases: ['8j', '8J', 'p8', 'P8', '8va justa', 'octava justa', 'octava', '8va'], level: 'standard' },
+    '4,3': { name: '4ta disminuida', aliases: ['4dism', 'dim4', 'd4', '4°', '4-', '4ta disminuida', 'cuarta disminuida'], level: 'advanced' },
+    '8,4': { name: '5ta aumentada', aliases: ['5aum', 'aug5', 'a5', '5+', '5ta aumentada', 'quinta aumentada'], level: 'advanced' },
+    '3,1': { name: '2da aumentada', aliases: ['2aum', 'aug2', 'a2', '2+', '2da aumentada', 'segunda aumentada'], level: 'advanced' },
+    '9,6': { name: '7ma disminuida', aliases: ['7dism', 'dim7', 'd7', '7°', '7-', '7ma disminuida', 'septima disminuida'], level: 'advanced' },
+    '2,2': { name: '3ra disminuida', aliases: ['3dism', 'dim3', 'd3', '3°', '3-', '3ra disminuida', 'tercera disminuida'], level: 'advanced' }
   };
 
   const ALL_TRIADS = [
@@ -409,7 +451,27 @@
     return str.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   }
 
+  function formatNote(noteLatina) {
+    if (currentNotation === 'americana') {
+      return LATINA_TO_AMERICANA[noteLatina] || noteLatina;
+    }
+    return noteLatina;
+  }
+
+  function normalizeUserInputNote(nStr) {
+    const s = cleanString(nStr);
+    return AMERICANA_TO_LATINA[s] || s;
+  }
+
   function getRandomInt(max) { return Math.floor(Math.random() * max); }
+
+  function setNotation(notation) {
+    currentNotation = notation;
+    document.getElementById('not-latina').classList.toggle('active', notation === 'latina');
+    document.getElementById('not-americana').classList.toggle('active', notation === 'americana');
+
+    updateDisplayContent();
+  }
 
   function switchMode(mode) {
     currentMode = mode;
@@ -468,6 +530,27 @@
     return null;
   }
 
+  function updateDisplayContent() {
+    if (currentMode === 'intervals' && currentTargetInterval) {
+      document.getElementById('note1').textContent = formatNote(currentTargetInterval.n1);
+      document.getElementById('note2').textContent = formatNote(currentTargetInterval.n2);
+
+      if (intervalDifficulty === 'advanced') {
+        document.getElementById('format-hint').innerHTML = 'Formatos: <code>5+</code>, <code>4°</code>, <code>4aum</code>, <code>3m</code>, <code>tritono</code>, etc.';
+      } else {
+        document.getElementById('format-hint').innerHTML = 'Formatos: <code>3m</code>, <code>3ra menor</code>, <code>5J</code>, <code>P5</code>, <code>tritono</code>, etc.';
+      }
+    } else if (currentMode === 'triads' && currentTargetTriad) {
+      document.getElementById('display-area').innerHTML = `<span>${formatNote(currentTargetTriad.root)}</span>`;
+      
+      if (currentNotation === 'americana') {
+        document.getElementById('format-hint').innerHTML = 'Ejemplo: <code>C - E - G</code>, <code>d f# a</code> o <code>eb g bb</code>';
+      } else {
+        document.getElementById('format-hint').innerHTML = 'Ejemplo: <code>Do - Mi - Sol</code>, <code>re fa# la</code> o <code>mib sol sib</code>';
+      }
+    }
+  }
+
   function generateTriadQuestion() {
     const availablePool = ALL_TRIADS.filter(t => activeTriadTypes.includes(t.name));
 
@@ -489,8 +572,7 @@
         prompt.style.display = 'block';
         prompt.textContent = `Construye la tríada de:`;
 
-        document.getElementById('display-area').innerHTML = `<span>${root}</span>`;
-        document.getElementById('format-hint').innerHTML = 'Ejemplo de formato: <code>Do - Mi - Sol</code>, <code>re fa# la</code> o <code>mib sol sib</code>';
+        updateDisplayContent();
         break;
       }
     }
@@ -521,6 +603,9 @@
         }
 
         currentTargetInterval = {
+          n1: n1,
+          n2: n2,
+          isAsc: isAsc,
           name: item.name,
           aliases: item.aliases.map(cleanString),
           st: st
@@ -532,16 +617,12 @@
 
         document.getElementById('prompt-text').style.display = 'none';
         document.getElementById('display-area').innerHTML = `
-          <span>${n1}</span>
+          <span id="note1"></span>
           <span class="arrow">${isAsc ? '↗' : '↘'}</span>
-          <span>${n2}</span>
+          <span id="note2"></span>
         `;
         
-        if (intervalDifficulty === 'advanced') {
-          document.getElementById('format-hint').innerHTML = 'Formatos: <code>5+</code>, <code>4°</code>, <code>4aum</code>, <code>3m</code>, <code>tritono</code>, etc.';
-        } else {
-          document.getElementById('format-hint').innerHTML = 'Formatos: <code>3m</code>, <code>3ra menor</code>, <code>5J</code>, <code>tritono</code>, etc.';
-        }
+        updateDisplayContent();
         break;
       }
     }
@@ -587,10 +668,11 @@
         fb.textContent = `Incorrecto. Era ${currentTargetInterval.name} (${currentTargetInterval.st} semitonos)`;
       }
     } else {
+      // Normaliza tanto respuestas en C D E como en Do Re Mi
       const parsedNotes = rawVal
         .split(/[\s,\-\/]+/)
         .filter(n => n.length > 0)
-        .map(cleanString);
+        .map(normalizeUserInputNote);
 
       const targetNotesClean = currentTargetTriad.notes.map(cleanString);
       const isCorrect = parsedNotes.length === 3 && 
@@ -598,7 +680,7 @@
                         parsedNotes[1] === targetNotesClean[1] &&
                         parsedNotes[2] === targetNotesClean[2];
 
-      const expectedString = currentTargetTriad.notes.join(' - ');
+      const expectedString = currentTargetTriad.notes.map(formatNote).join(' - ');
 
       if (isCorrect) {
         score++;
